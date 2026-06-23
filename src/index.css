@@ -1,0 +1,285 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+:root {
+  --background: #F8F9FC;
+  --background-elevated: #F3F5FB;
+  --card: #FFFFFF;
+  --card-soft: #FBFCFF;
+  --primary: #6D4AFF;
+  --secondary: #8B5CF6;
+  --text-primary: #111827;
+  --text-secondary: #6B7280;
+  --border: #E5E7EB;
+  --shadow-lg: 0 30px 70px -42px rgba(17, 24, 39, 0.24);
+  --shadow-md: 0 18px 40px -28px rgba(17, 24, 39, 0.2);
+  --shadow-sm: 0 12px 24px -20px rgba(17, 24, 39, 0.16);
+}
+
+.dark {
+  --background: #0F1117;
+  --background-elevated: #151722;
+  --card: #171923;
+  --card-soft: #1D1F2D;
+  --primary: #6D4AFF;
+  --secondary: #8B5CF6;
+  --text-primary: #FFFFFF;
+  --text-secondary: #A1A1AA;
+  --border: rgba(255, 255, 255, 0.08);
+  --shadow-lg: 0 30px 70px -42px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 18px 40px -28px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 12px 24px -20px rgba(0, 0, 0, 0.3);
+}
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    background: var(--background);
+    scroll-behavior: smooth;
+  }
+
+  body {
+    margin: 0;
+    min-width: 320px;
+    background:
+      radial-gradient(circle at top left, rgba(139, 92, 246, 0.06), transparent 32%),
+      radial-gradient(circle at top right, rgba(109, 74, 255, 0.06), transparent 28%),
+      linear-gradient(180deg, var(--card) 0%, var(--background) 26%, var(--background) 100%);
+    color: var(--text-primary);
+    font-family: 'Inter', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  .dark body {
+    background:
+      radial-gradient(circle at top left, rgba(109, 74, 255, 0.08), transparent 35%),
+      radial-gradient(circle at top right, rgba(139, 92, 246, 0.06), transparent 30%),
+      linear-gradient(180deg, #0F1117 0%, #0d0f14 100%);
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
+}
+
+@layer components {
+  .app-surface {
+    @apply rounded-[20px] border;
+    background-color: var(--card);
+    border-color: var(--border);
+    box-shadow: var(--shadow-md);
+  }
+
+  .app-surface-soft {
+    @apply rounded-[18px] border;
+    background-color: var(--card-soft);
+    border-color: var(--border);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .app-topbar {
+    @apply border-b backdrop-blur-xl;
+    background-color: rgba(255, 255, 255, 0.85);
+    border-color: var(--border);
+  }
+
+  .dark .app-topbar {
+    background-color: rgba(15, 17, 23, 0.85);
+  }
+
+  .app-sidebar-item {
+    @apply flex items-center gap-3 rounded-[14px] px-3.5 py-2 text-[15px] font-medium transition-all cursor-pointer;
+    color: var(--text-secondary);
+  }
+
+  .app-sidebar-item:hover {
+    background-color: var(--background-elevated);
+    color: var(--text-primary);
+  }
+
+  .app-sidebar-item-active {
+    background-color: rgba(109, 74, 255, 0.08);
+    color: var(--primary);
+    box-shadow: inset 0 0 0 1px rgba(109, 74, 255, 0.15);
+  }
+
+  .dark .app-sidebar-item-active {
+    background-color: rgba(109, 74, 255, 0.15);
+    box-shadow: inset 0 0 0 1px rgba(109, 74, 255, 0.3);
+  }
+
+  .app-input {
+    @apply w-full rounded-[14px] border px-3.5 py-2.5 text-sm outline-none transition-all;
+    background-color: var(--card);
+    border-color: var(--border);
+    color: var(--text-primary);
+  }
+
+  .app-input::placeholder {
+    color: #9CA3AF;
+  }
+
+  .dark .app-input::placeholder {
+    color: #4B5563;
+  }
+
+  .app-input:focus {
+    border-color: rgba(109, 74, 255, 0.4);
+    box-shadow: 0 0 0 3px rgba(109, 74, 255, 0.12);
+  }
+
+  .app-button-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-[14px] px-4 py-2.5 text-sm font-medium text-white transition-all cursor-pointer;
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    box-shadow: 0 10px 20px -10px rgba(109, 74, 255, 0.4);
+  }
+
+  .app-button-primary:hover {
+    transform: translateY(-0.5px);
+    box-shadow: 0 14px 24px -12px rgba(109, 74, 255, 0.5);
+  }
+
+  .app-button-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-[14px] border px-4 py-2.5 text-sm font-medium transition-all cursor-pointer;
+    background-color: var(--card);
+    border-color: var(--border);
+    color: var(--text-primary);
+  }
+
+  .app-button-secondary:hover {
+    background-color: var(--background-elevated);
+  }
+
+  .subtle-ring {
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  }
+
+  .priority-pill {
+    @apply inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.1em];
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .soft-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #D1D5DB transparent;
+  }
+
+  .soft-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .soft-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .soft-scrollbar::-webkit-scrollbar-thumb {
+    background: #D1D5DB;
+    border-radius: 999px;
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.02);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 12px rgba(139, 92, 246, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(236, 72, 153, 0.7);
+  }
+}
+
+@keyframes bounce-subtle {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes particle-drift {
+  0% {
+    transform: translateY(0) translateX(0) scale(1);
+    opacity: 0;
+  }
+  50% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateY(-40px) translateX(20px) scale(0.6);
+    opacity: 0;
+  }
+}
+
+.animate-shimmer-border {
+  background-size: 200% auto;
+  animation: shimmer 3s linear infinite;
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 3s ease-in-out infinite;
+}
+
+.animate-bounce-subtle {
+  animation: bounce-subtle 2s ease-in-out infinite;
+}
+
+.animate-particle-drift {
+  animation: particle-drift 4s ease-in-out infinite;
+}
+
