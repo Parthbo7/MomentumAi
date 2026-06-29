@@ -10,6 +10,8 @@ import {
   serverTimestamp,
   query,
   where,
+  orderBy,
+  limit,
   runTransaction,
   writeBatch,
   type Timestamp,
@@ -31,6 +33,11 @@ export interface UserProfile {
   college?: string;
   role?: string;
   location?: string;
+  level?: number;
+  xp?: number;
+  bestStreak?: number;
+  activeDays?: number;
+  aiInteractions?: number;
 }
 
 export interface UserStats {
@@ -89,10 +96,48 @@ export interface DbTask {
   userId: string;
   title: string;
   description: string;
+  category?: string;
   priority: 'low' | 'medium' | 'high' | 'critical';
+  status?: 'not_started' | 'in_progress' | 'waiting' | 'completed' | 'cancelled' | 'overdue';
   completed: boolean;
   dueDate: Timestamp | any;
+  dueTime?: string;
+  durationMinutes?: number;
+  progress?: number;
+  tags?: string[];
+  reminder?: boolean;
+  reminderMinutesBefore?: number;
+  repeatRule?: 'daily' | 'weekly' | 'monthly' | 'yearly' | 'custom' | '';
+  linkedCalendarEventId?: string | null;
+  linkedCalendarEvent?: boolean;
+  subject?: string;
+  faculty?: string;
+  marksWeightage?: number;
+  attachments?: string[];
+  notes?: string;
+  projectName?: string;
+  team?: string;
+  estimatedHours?: number;
+  customCategory?: string;
   createdAt: Timestamp | any;
+  updatedAt?: Timestamp | any;
+  completedAt?: Timestamp | any | null;
+  location?: string;
+  guests?: string[];
+  repeatFrequency?: string;
+  goal?: string;
+  streak?: number;
+  endTime?: string;
+  scheduleInCalendar?: boolean;
+  preferredTime?: 'morning' | 'afternoon' | 'evening' | 'night' | 'anytime';
+  earliestStartDate?: string;
+  latestFinishTime?: string;
+  fixedTime?: string;
+  flexibleScheduling?: boolean;
+  breakAfterTask?: boolean;
+  isAiScheduled?: boolean;
+  aiReason?: string;
+  rescheduleCount?: number;
 }
 
 export interface DbEvent {
@@ -104,16 +149,79 @@ export interface DbEvent {
   source: 'manual' | 'google-calendar';
   priority?: 'low' | 'medium' | 'high' | 'critical';
   createdAt: Timestamp | any;
+  description?: string;
+  faculty?: string;
+  location?: string;
+  category?: string;
+  attachments?: string[];
+  completed?: boolean;
+  notes?: string;
+  checklist?: { text: string; completed: boolean }[];
+  linkedAssignment?: string;
+  googleCalendarLink?: string;
+  xpReward?: number;
+  type?: 'Event' | 'Task' | 'Assignment' | 'Routine' | 'Study' | 'Workout' | 'Break' | 'Meeting' | 'Reminder' | 'Class' | 'Habit' | 'AI Block';
+  isRecurring?: boolean;
+  recurrenceRule?: 'daily' | 'weekdays' | 'weekends' | 'weekly' | 'biweekly' | 'monthly' | 'custom-days' | 'custom-weeks' | 'semester';
+  recurrenceInterval?: number;
+  recurrenceDays?: number[];
+  recurrenceUntil?: string;
+  repeatSeriesId?: string;
+  isException?: boolean;
+  exceptionDates?: string[];
+  isAiScheduled?: boolean;
+  aiReason?: string;
+  flexibleScheduling?: boolean;
+  breakAfterTask?: boolean;
+  rescheduleCount?: number;
+  // Goal-event fields
+  goalId?: string;
+  isGoalEvent?: boolean;
+  goalSchedulingType?: 'fixed' | 'flexible' | 'ai';
+  sessionIndex?: number;
+  missedAt?: string;
+  rescheduledFrom?: string;
+  lastModifiedByUser?: string | null;
+  updatedAt?: any;
 }
 
 export interface DbGoal {
   id?: string;
   userId: string;
   title: string;
+  description?: string;
+  icon?: string;
+  category?: string;
+  priority?: 'low' | 'medium' | 'high' | 'critical';
   progress: number;
   target: number;
-  status: string;
+  status: 'active' | 'completed' | 'archived' | 'paused';
   createdAt: Timestamp | any;
+  updatedAt?: Timestamp | any;
+  // Scheduling
+  schedulingType?: 'ai' | 'fixed' | 'flexible';
+  fixedStartTime?: string;
+  fixedEndTime?: string;
+  flexWindowStart?: string;
+  flexWindowEnd?: string;
+  sessionDurationMins?: number;
+  sessionsPerWeek?: number;
+  repeatDays?: number[];
+  repeatRule?: 'daily' | 'weekdays' | 'weekends' | 'selected' | 'monthly';
+  targetDate?: string;
+  estimatedWeeklyHours?: number;
+  progressType?: 'percentage' | 'sessions' | 'hours';
+  // Lock persistence
+  isLocked?: boolean;
+  lastModifiedByUser?: string | null;
+  // Sync
+  linkedEventIds?: string[];
+  completedSessions?: number;
+  totalSessions?: number;
+  currentStreak?: number;
+  longestStreak?: number;
+  lastCompletedDate?: string;
+  missedDates?: string[];
 }
 
 export interface Habit {
@@ -123,6 +231,24 @@ export interface Habit {
   completedToday: boolean;
   lastCompletedDate: string | null;
   createdAt: Timestamp | any;
+  // Extended fields (used by UI)
+  description?: string;
+  icon?: string;
+  category?: string;
+  preferredTime?: string;
+  duration?: number;
+  repeat?: 'daily' | 'weekdays' | 'weekends' | 'custom' | 'monthly';
+  lockTime?: boolean;
+  isLocked?: boolean;
+  allowAiReschedule?: boolean;
+  reminder?: boolean;
+  difficulty?: 'easy' | 'medium' | 'hard';
+  currentStreak?: number;
+  longestStreak?: number;
+  completionRate?: number;
+  // Lock persistence
+  lastModifiedByUser?: string | null;
+  updatedAt?: Timestamp | any;
 }
 
 export interface Note {
@@ -347,13 +473,51 @@ export const ALL_BADGE_IDS = MASTER_BADGES.map(b => b.badgeId);
 const BADGE_UNLOCK_NOTIFICATION_TITLE = '\u{1F389} New Badge Earned!';
 
 function calculateLevelFromXp(xp: number): number {
-  if (xp <= 100) return 1;
-  if (xp <= 300) return 2;
-  if (xp <= 600) return 3;
-  if (xp <= 1000) return 4;
-  if (xp <= 1500) return 5;
-  if (xp <= 2500) return 6;
-  return 7;
+  const thresholds = [
+    0,     // L1
+    100,   // L2
+    300,   // L3
+    600,   // L4
+    1000,  // L5
+    1500,  // L6
+    2500,  // L7
+    3500,  // L8
+    5000,  // L9
+    7000,  // L10
+    9500,  // L11
+    12500, // L12
+    16000, // L13
+    20000, // L14
+    25000, // L15
+    31000, // L16
+    38000, // L17
+    46000, // L18
+    55000, // L19
+    65000, // L20
+    77000, // L21
+    91000, // L22
+    107000,// L23
+    125000,// L24
+    150000 // L25
+  ];
+  let level = 1;
+  for (let i = 1; i < thresholds.length; i++) {
+    if (xp >= thresholds[i]) level = i + 1;
+    else break;
+  }
+  return Math.min(level, 25);
+}
+
+/**
+ * Computes a 0-100 momentum score from user stats.
+ */
+function computeMomentumScore(stats: UserStats): number {
+  const streakPoints = Math.min((stats.currentStreak || 0) * 2, 30);
+  const taskPoints = Math.min((stats.tasksCompleted || 0) * 0.3, 25);
+  const goalPoints = Math.min((stats.goalsCompleted || 0) * 3, 20);
+  const levelPoints = Math.min((stats.level || 1) * 1.5, 20);
+  const habitPoints = Math.min((stats.habitsCompleted || 0) * 0.2, 5);
+  return Math.min(Math.round(streakPoints + taskPoints + goalPoints + levelPoints + habitPoints), 100);
 }
 
 async function getBadgeDefinitions(): Promise<BadgeDefinition[]> {
@@ -410,6 +574,26 @@ async function createBadgeNotification(uid: string, badgeTitle: string): Promise
   });
 }
 
+export async function markNotificationRead(notificationId: string): Promise<void> {
+  const docRef = doc(db, 'notifications', notificationId);
+  await updateDoc(docRef, { read: true });
+}
+
+export async function markAllNotificationsRead(uid: string): Promise<void> {
+  const q = query(collection(db, 'notifications'), where('uid', '==', uid), where('read', '==', false));
+  const snapshot = await getDocs(q);
+  const batch = writeBatch(db);
+  snapshot.docs.forEach((docSnap) => {
+    batch.update(docSnap.ref, { read: true });
+  });
+  await batch.commit();
+}
+
+export async function deleteNotification(notificationId: string): Promise<void> {
+  const docRef = doc(db, 'notifications', notificationId);
+  await deleteDoc(docRef);
+}
+
 export async function seedBadgeDefinitions(): Promise<void> {
   const colRef = collection(db, 'badge_definitions');
   const snap = await getDocs(colRef);
@@ -434,6 +618,7 @@ export async function awardXPAndLog(uid: string, action: string, amount: number)
   
   const statsRef = doc(db, 'user_stats', uid);
   const xpHistoryRef = collection(db, 'user_xp_history');
+  const userRef = doc(db, 'users', uid);
   
   await runTransaction(db, async (transaction) => {
     const statsSnap = await transaction.get(statsRef);
@@ -442,16 +627,16 @@ export async function awardXPAndLog(uid: string, action: string, amount: number)
     const statsData = statsSnap.data() as UserStats;
     const currentXp = statsData.xp || 0;
     const newXp = currentXp + amount;
-    
     const newLevel = calculateLevelFromXp(newXp);
+    const updatedStats = { ...statsData, xp: newXp, level: newLevel };
+    const momentumScore = computeMomentumScore(updatedStats);
     
-    transaction.update(statsRef, {
-      xp: newXp,
-      level: newLevel
-    });
+    transaction.update(statsRef, { xp: newXp, level: newLevel });
+    transaction.update(userRef, { momentumScore, xp: newXp, level: newLevel });
     
     const newHistoryDocRef = doc(xpHistoryRef);
     transaction.set(newHistoryDocRef, {
+      uid,
       action,
       xpEarned: amount,
       timestamp: serverTimestamp()
@@ -515,7 +700,7 @@ export async function updateBadgeProgress(uid: string, badgeId: string, progress
   const isUnlocked = progressVal >= target;
   
   await updateDoc(badgeRef, {
-    progress: Math.min(progressVal, target),
+    progress: isUnlocked ? target : Math.min(progressVal, target),
     isUnlocked,
     earnedAt: isUnlocked ? serverTimestamp() : null
   });
@@ -600,6 +785,13 @@ export async function ensureUserProfile(user: User, displayNameOverride?: string
   }
   const badgeDefinitions = await getBadgeDefinitions();
 
+  // 1b. Migrate planner data to new calendar collections if needed
+  try {
+    await dbMigratePlannerToCalendar(user.uid);
+  } catch (err) {
+    console.error('Error running planner to calendar migration:', err);
+  }
+
   if (!userSnap.exists()) {
     // Create users profile
     const defaultProfile: UserProfile = {
@@ -612,7 +804,15 @@ export async function ensureUserProfile(user: User, displayNameOverride?: string
       momentumScore: 87,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-      lastLogin: serverTimestamp()
+      lastLogin: serverTimestamp(),
+      level: 3,
+      xp: 720,
+      bestStreak: 31,
+      activeDays: 87,
+      aiInteractions: 14,
+      college: 'Momentum Academy',
+      role: 'AI Explorer',
+      location: 'San Francisco, CA'
     };
     await setDoc(userRef, defaultProfile);
 
@@ -720,10 +920,10 @@ export async function ensureUserProfile(user: User, displayNameOverride?: string
           await awardXPAndLog(user.uid, 'STREAK_BONUS', 2 * newStreak);
 
           if (newStreak % 7 === 0) {
-            await awardXPAndLog(user.uid, 'WEEKLY_PERFECT_STREAK', 50);
+            await awardXPAndLog(user.uid, 'WEEKLY_PERFECT_STREAK', 100);
           }
           if (newStreak % 30 === 0) {
-            await awardXPAndLog(user.uid, 'MONTHLY_PERFECT_STREAK', 200);
+            await awardXPAndLog(user.uid, 'MONTHLY_PERFECT_STREAK', 500);
           }
 
           await updateBadgeProgress(user.uid, 'streak_7', newStreak);
@@ -826,19 +1026,97 @@ export async function updateUserProfile(uid: string, data: Partial<UserProfile>)
 /**
  * Adds a new task.
  */
-export async function dbAddTask(userId: string, task: { title: string; description: string; priority: DbTask['priority']; completed: boolean; dueDate: Date }): Promise<void> {
+export async function dbAddTask(
+  userId: string,
+  task: {
+    title: string;
+    description: string;
+    category?: string;
+    priority: DbTask['priority'];
+    status?: DbTask['status'];
+    completed: boolean;
+    dueDate: Date;
+    dueTime?: string;
+    durationMinutes?: number;
+    progress?: number;
+    tags?: string[];
+    reminder?: boolean;
+    reminderMinutesBefore?: number;
+    repeatRule?: DbTask['repeatRule'];
+    linkedCalendarEventId?: string | null;
+    linkedCalendarEvent?: boolean;
+    subject?: string;
+    faculty?: string;
+    marksWeightage?: number;
+    attachments?: string[];
+    notes?: string;
+    projectName?: string;
+    team?: string;
+    estimatedHours?: number;
+    customCategory?: string;
+    location?: string;
+    guests?: string[];
+    repeatFrequency?: string;
+    goal?: string;
+    streak?: number;
+    endTime?: string;
+  }
+): Promise<string> {
   const tasksRef = collection(db, 'tasks');
-  await addDoc(tasksRef, {
+  const docRef = await addDoc(tasksRef, {
     userId,
     title: task.title,
     description: task.description || '',
+    category: task.category || 'Other',
     priority: task.priority,
+    status: task.status || (task.completed ? 'completed' : 'not_started'),
     completed: task.completed,
     dueDate: task.dueDate,
+    dueTime: task.dueTime || '',
+    durationMinutes: task.durationMinutes ?? 30,
+    progress: task.progress ?? (task.completed ? 100 : 0),
+    tags: task.tags || [],
+    reminder: task.reminder ?? false,
+    reminderMinutesBefore: task.reminderMinutesBefore ?? 30,
+    repeatRule: task.repeatRule || '',
+    linkedCalendarEventId: task.linkedCalendarEventId || null,
+    linkedCalendarEvent: task.linkedCalendarEvent ?? false,
+    subject: task.subject || '',
+    faculty: task.faculty || '',
+    marksWeightage: task.marksWeightage ?? 0,
+    attachments: task.attachments || [],
+    notes: task.notes || '',
+    projectName: task.projectName || '',
+    team: task.team || '',
+    estimatedHours: task.estimatedHours ?? 0,
+    customCategory: task.customCategory || '',
+    location: task.location || '',
+    guests: task.guests || [],
+    repeatFrequency: task.repeatFrequency || '',
+    goal: task.goal || '',
+    streak: task.streak ?? 0,
+    endTime: task.endTime || '',
     createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    completedAt: task.completed ? serverTimestamp() : null,
   });
   
   await awardXPAndLog(userId, 'TASK_CREATED', 2);
+  return docRef.id;
+}
+
+/**
+ * Updates a task.
+ */
+export async function dbUpdateTask(
+  taskId: string,
+  data: Partial<Omit<DbTask, 'id' | 'userId' | 'createdAt'>>
+): Promise<void> {
+  const taskRef = doc(db, 'tasks', taskId);
+  await updateDoc(taskRef, {
+    ...data,
+    updatedAt: serverTimestamp(),
+  });
 }
 
 /**
@@ -853,10 +1131,21 @@ export async function dbToggleTaskCompleted(taskId: string, completed: boolean):
 
   await updateDoc(taskRef, {
     completed,
+    status: completed ? 'completed' : (taskData.status || 'not_started'),
+    completedAt: completed ? serverTimestamp() : null,
+    updatedAt: serverTimestamp(),
   });
 
   if (completed) {
-    await awardXPAndLog(userId, 'TASK_COMPLETED', 10);
+    // Priority-aware XP rewards
+    const priorityXpMap: Record<string, number> = {
+      critical: 50,
+      high: 25,
+      medium: 10,
+      low: 5,
+    };
+    const xpEarned = priorityXpMap[taskData.priority || 'medium'] ?? 10;
+    await awardXPAndLog(userId, `TASK_COMPLETED_${(taskData.priority || 'MEDIUM').toUpperCase()}`, xpEarned);
 
     const statsRef = doc(db, 'user_stats', userId);
     const statsSnap = await getDoc(statsRef);
@@ -864,12 +1153,25 @@ export async function dbToggleTaskCompleted(taskId: string, completed: boolean):
     if (statsSnap.exists()) {
       const stats = statsSnap.data() as UserStats;
       tasksCompletedVal = (stats.tasksCompleted || 0) + 1;
+      const momentumScore = computeMomentumScore({ ...stats, tasksCompleted: tasksCompletedVal });
       await updateDoc(statsRef, { tasksCompleted: tasksCompletedVal });
+      await updateDoc(doc(db, 'users', userId), { momentumScore });
     }
 
     await updateBadgeProgress(userId, 'first_task', 1);
     await updateBadgeProgress(userId, 'task_crusher', tasksCompletedVal);
     await updateBadgeProgress(userId, 'productivity_machine', tasksCompletedVal);
+  }
+
+  if (taskData.linkedCalendarEventId) {
+    try {
+      await updateDoc(doc(db, 'calendar_events', taskData.linkedCalendarEventId), {
+        completed,
+        updatedAt: serverTimestamp(),
+      });
+    } catch (err) {
+      console.error('Error syncing linked calendar event from task completion:', err);
+    }
   }
 }
 
@@ -878,30 +1180,116 @@ export async function dbToggleTaskCompleted(taskId: string, completed: boolean):
  */
 export async function dbDeleteTask(taskId: string): Promise<void> {
   const taskRef = doc(db, 'tasks', taskId);
+  const taskSnap = await getDoc(taskRef);
+  if (taskSnap.exists()) {
+    const taskData = taskSnap.data() as DbTask;
+    if (taskData.linkedCalendarEventId) {
+      try {
+        await deleteDoc(doc(db, 'calendar_events', taskData.linkedCalendarEventId));
+      } catch (err) {
+        console.error('Error deleting linked calendar event:', err);
+      }
+    }
+  }
   await deleteDoc(taskRef);
 }
 
 /**
  * Adds a calendar event.
  */
-export async function dbAddEvent(userId: string, event: { title: string; startTime: Date; endTime: Date; source: DbEvent['source']; priority?: DbEvent['priority'] }): Promise<void> {
-  const eventsRef = collection(db, 'events');
-  await addDoc(eventsRef, {
+export async function dbAddEvent(
+  userId: string,
+  event: {
+    title: string;
+    startTime: Date;
+    endTime: Date;
+    source: DbEvent['source'];
+    priority?: DbEvent['priority'];
+    description?: string;
+    faculty?: string;
+    location?: string;
+    category?: string;
+    attachments?: string[];
+    completed?: boolean;
+    notes?: string;
+    checklist?: { text: string; completed: boolean }[];
+    linkedAssignment?: string;
+    googleCalendarLink?: string;
+    xpReward?: number;
+    type?: DbEvent['type'];
+    isRecurring?: boolean;
+    recurrenceRule?: DbEvent['recurrenceRule'];
+    recurrenceInterval?: number;
+    recurrenceDays?: number[];
+    recurrenceUntil?: string;
+    repeatSeriesId?: string;
+    isException?: boolean;
+    exceptionDates?: string[];
+    isAiScheduled?: boolean;
+    aiReason?: string;
+    flexibleScheduling?: boolean;
+    breakAfterTask?: boolean;
+    rescheduleCount?: number;
+  }
+): Promise<string> {
+  const eventsRef = collection(db, 'calendar_events');
+  const cleanEvent: any = {
     userId,
     title: event.title,
     startTime: event.startTime,
     endTime: event.endTime,
     source: event.source,
     priority: event.priority || 'medium',
+    description: event.description || '',
+    faculty: event.faculty || '',
+    location: event.location || '',
+    category: event.category || '',
+    attachments: event.attachments || [],
+    completed: event.completed || false,
+    notes: event.notes || '',
+    checklist: event.checklist || [],
+    linkedAssignment: event.linkedAssignment || '',
+    googleCalendarLink: event.googleCalendarLink || '',
+    xpReward: event.xpReward || 0,
     createdAt: serverTimestamp(),
-  });
+  };
+
+  if (event.type !== undefined) cleanEvent.type = event.type;
+  if (event.isRecurring !== undefined) cleanEvent.isRecurring = event.isRecurring;
+  if (event.recurrenceRule !== undefined) cleanEvent.recurrenceRule = event.recurrenceRule;
+  if (event.recurrenceInterval !== undefined) cleanEvent.recurrenceInterval = event.recurrenceInterval;
+  if (event.recurrenceDays !== undefined) cleanEvent.recurrenceDays = event.recurrenceDays;
+  if (event.recurrenceUntil !== undefined) cleanEvent.recurrenceUntil = event.recurrenceUntil;
+  if (event.repeatSeriesId !== undefined) cleanEvent.repeatSeriesId = event.repeatSeriesId;
+  if (event.isException !== undefined) cleanEvent.isException = event.isException;
+  if (event.exceptionDates !== undefined) cleanEvent.exceptionDates = event.exceptionDates;
+  if (event.isAiScheduled !== undefined) cleanEvent.isAiScheduled = event.isAiScheduled;
+  if (event.aiReason !== undefined) cleanEvent.aiReason = event.aiReason;
+  if (event.flexibleScheduling !== undefined) cleanEvent.flexibleScheduling = event.flexibleScheduling;
+  if (event.breakAfterTask !== undefined) cleanEvent.breakAfterTask = event.breakAfterTask;
+  if (event.rescheduleCount !== undefined) cleanEvent.rescheduleCount = event.rescheduleCount;
+
+  const docRef = await addDoc(eventsRef, cleanEvent);
+  return docRef.id;
+}
+
+/**
+ * Updates a calendar event.
+ */
+export async function dbUpdateEvent(
+  eventId: string,
+  data: Partial<DbEvent>
+): Promise<void> {
+  const eventRef = doc(db, 'calendar_events', eventId);
+  const updateData: any = { ...data };
+  await updateDoc(eventRef, updateData);
 }
 
 /**
  * Deletes a calendar event.
  */
 export async function dbDeleteEvent(eventId: string): Promise<void> {
-  const eventRef = doc(db, 'events', eventId);
+  const eventRef = doc(db, 'calendar_events', eventId);
   await deleteDoc(eventRef);
 }
 
@@ -934,7 +1322,7 @@ export async function dbToggleHabitCompleted(userId: string, habitId: string, co
   });
 
   if (completed) {
-    await awardXPAndLog(userId, 'HABIT_COMPLETED', 5);
+    await awardXPAndLog(userId, 'HABIT_COMPLETED', 15);
 
     const statsRef = doc(db, 'user_stats', userId);
     const statsSnap = await getDoc(statsRef);
@@ -942,21 +1330,190 @@ export async function dbToggleHabitCompleted(userId: string, habitId: string, co
     if (statsSnap.exists()) {
       const stats = statsSnap.data() as UserStats;
       habitsCompletedVal = (stats.habitsCompleted || 0) + 1;
+      const momentumScore = computeMomentumScore({ ...stats, habitsCompleted: habitsCompletedVal });
       await updateDoc(statsRef, { habitsCompleted: habitsCompletedVal });
+      await updateDoc(doc(db, 'users', userId), { momentumScore });
     }
   }
 }
 
 /**
- * Deletes a habit.
+ * Deletes a habit and all its linked calendar events.
  */
-export async function dbDeleteHabit(habitId: string): Promise<void> {
+export async function dbDeleteHabit(habitId: string, linkedEventIds?: string[]): Promise<void> {
+  // Delete linked calendar events
+  if (linkedEventIds && linkedEventIds.length > 0) {
+    const eventsRef = collection(db, 'calendar_events');
+    const CHUNK = 400;
+    for (let i = 0; i < linkedEventIds.length; i += CHUNK) {
+      const batch = writeBatch(db);
+      const chunk = linkedEventIds.slice(i, i + CHUNK);
+      for (const eventId of chunk) {
+        batch.delete(doc(eventsRef, eventId));
+      }
+      await batch.commit();
+    }
+  }
+  // Delete the habit document
   const habitRef = doc(db, 'habits', habitId);
   await deleteDoc(habitRef);
 }
 
 /**
- * Adds a new goal.
+ * Creates a habit with full calendar event integration.
+ * Saves the habit doc then batch-writes all generated calendar events.
+ * Returns the new habit ID.
+ */
+export async function dbCreateHabitWithSchedule(
+  userId: string,
+  habitData: Record<string, any>,
+  eventSpecs: Array<{
+    date: string; start: string; end: string;
+    isLocked: boolean;
+    icon?: string;
+    category?: string;
+  }>
+): Promise<string> {
+  // 1. Create the habit document
+  const habitsRef = collection(db, 'habits');
+  const habitRef = await addDoc(habitsRef, {
+    ...habitData,
+    userId,
+    completedToday: false,
+    lastCompletedDate: null,
+    linkedEventIds: [],
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+  const habitId = habitRef.id;
+
+  // 2. Batch-create calendar events tagged with habitId
+  const eventsRef = collection(db, 'calendar_events');
+  const linkedIds: string[] = [];
+
+  const CHUNK = 400;
+  for (let i = 0; i < eventSpecs.length; i += CHUNK) {
+    const batch = writeBatch(db);
+    const chunk = eventSpecs.slice(i, i + CHUNK);
+    for (const spec of chunk) {
+      const startDate = new Date(`${spec.date}T00:00:00`);
+      const [sh, sm, sap] = parseTimeParts(spec.start);
+      const [eh, em, eap] = parseTimeParts(spec.end);
+      startDate.setHours(sap === 'PM' && sh < 12 ? sh + 12 : (sap === 'AM' && sh === 12 ? 0 : sh), sm, 0, 0);
+      const endDate = new Date(`${spec.date}T00:00:00`);
+      endDate.setHours(eap === 'PM' && eh < 12 ? eh + 12 : (eap === 'AM' && eh === 12 ? 0 : eh), em, 0, 0);
+
+      const evRef = doc(eventsRef);
+      linkedIds.push(evRef.id);
+      batch.set(evRef, {
+        userId,
+        habitId,
+        isHabitEvent: true,
+        sourceType: 'habit',
+        sourceId: habitId,
+        title: habitData.title || '',
+        icon: spec.icon || '🔥',
+        category: spec.category || 'Health',
+        startTime: startDate,
+        endTime: endDate,
+        source: 'manual',
+        priority: 'medium',
+        flexibleScheduling: !spec.isLocked,
+        isLocked: spec.isLocked,
+        completed: false,
+        createdAt: serverTimestamp(),
+      });
+    }
+    await batch.commit();
+  }
+
+  // 3. Patch linkedEventIds back onto the habit
+  await updateDoc(habitRef, { linkedEventIds: linkedIds });
+
+  await awardXPAndLog(userId, 'HABIT_CREATED', 3);
+  return habitId;
+}
+
+/**
+ * Updates a habit and regenerates all its calendar events.
+ */
+export async function dbUpdateHabitSchedule(
+  userId: string,
+  habitId: string,
+  habitData: Record<string, any>,
+  eventSpecs: Array<{
+    date: string; start: string; end: string;
+    isLocked: boolean;
+    icon?: string;
+    category?: string;
+  }>,
+  oldLinkedEventIds?: string[]
+): Promise<void> {
+  // 1. Delete old linked events
+  if (oldLinkedEventIds && oldLinkedEventIds.length > 0) {
+    const eventsRef = collection(db, 'calendar_events');
+    const CHUNK = 400;
+    for (let i = 0; i < oldLinkedEventIds.length; i += CHUNK) {
+      const batch = writeBatch(db);
+      const chunk = oldLinkedEventIds.slice(i, i + CHUNK);
+      for (const eventId of chunk) {
+        batch.delete(doc(eventsRef, eventId));
+      }
+      await batch.commit();
+    }
+  }
+
+  // 2. Batch-create new events
+  const eventsRef = collection(db, 'calendar_events');
+  const linkedIds: string[] = [];
+
+  const CHUNK = 400;
+  for (let i = 0; i < eventSpecs.length; i += CHUNK) {
+    const batch = writeBatch(db);
+    const chunk = eventSpecs.slice(i, i + CHUNK);
+    for (const spec of chunk) {
+      const startDate = new Date(`${spec.date}T00:00:00`);
+      const [sh, sm, sap] = parseTimeParts(spec.start);
+      const [eh, em, eap] = parseTimeParts(spec.end);
+      startDate.setHours(sap === 'PM' && sh < 12 ? sh + 12 : (sap === 'AM' && sh === 12 ? 0 : sh), sm, 0, 0);
+      const endDate = new Date(`${spec.date}T00:00:00`);
+      endDate.setHours(eap === 'PM' && eh < 12 ? eh + 12 : (eap === 'AM' && eh === 12 ? 0 : eh), em, 0, 0);
+
+      const evRef = doc(eventsRef);
+      linkedIds.push(evRef.id);
+      batch.set(evRef, {
+        userId,
+        habitId,
+        isHabitEvent: true,
+        sourceType: 'habit',
+        sourceId: habitId,
+        title: habitData.title || '',
+        icon: spec.icon || '🔥',
+        category: spec.category || 'Health',
+        startTime: startDate,
+        endTime: endDate,
+        source: 'manual',
+        priority: 'medium',
+        flexibleScheduling: !spec.isLocked,
+        isLocked: spec.isLocked,
+        completed: false,
+        createdAt: serverTimestamp(),
+      });
+    }
+    await batch.commit();
+  }
+
+  // 3. Update habit doc with new linkedEventIds
+  const habitRef = doc(db, 'habits', habitId);
+  await updateDoc(habitRef, {
+    ...habitData,
+    linkedEventIds: linkedIds,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+/**
+ * Adds a new goal (simple, legacy). Use dbCreateGoalWithSchedule for full integration.
  */
 export async function dbAddGoal(userId: string, title: string, target: number): Promise<void> {
   const goalsRef = collection(db, 'goals');
@@ -966,11 +1523,171 @@ export async function dbAddGoal(userId: string, title: string, target: number): 
     progress: 0,
     target,
     status: 'active',
+    schedulingType: 'flexible',
     createdAt: serverTimestamp()
   });
-
-  await awardXPAndLog(userId, 'GOAL_CREATED', 5);
+  await awardXPAndLog(userId, 'GOAL_CREATED', 10);
   await updateBadgeProgress(userId, 'first_goal', 1);
+}
+
+/**
+ * Creates a goal with full schedule integration.
+ * Saves the goal doc then batch-writes all generated calendar events.
+ * Returns the new goal ID.
+ */
+export async function dbCreateGoalWithSchedule(
+  userId: string,
+  goalData: Omit<DbGoal, 'id' | 'userId' | 'createdAt'>,
+  eventSpecs: Array<{
+    date: string; start: string; end: string;
+    flexibleScheduling: boolean;
+    goalSchedulingType: 'fixed' | 'flexible' | 'ai';
+    sessionIndex: number;
+  }>
+): Promise<string> {
+  // 1. Create the goal document
+  const goalsRef = collection(db, 'goals');
+  const goalRef = await addDoc(goalsRef, {
+    ...goalData,
+    userId,
+    progress: goalData.progress ?? 0,
+    status: 'active',
+    completedSessions: 0,
+    totalSessions: eventSpecs.length,
+    linkedEventIds: [],
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+  const goalId = goalRef.id;
+
+  // 2. Batch-create calendar events tagged with goalId
+  const eventsRef = collection(db, 'calendar_events');
+  const linkedIds: string[] = [];
+
+  // Firestore batch has a 500-doc limit; chunk for safety
+  const CHUNK = 400;
+  for (let i = 0; i < eventSpecs.length; i += CHUNK) {
+    const batch = writeBatch(db);
+    const chunk = eventSpecs.slice(i, i + CHUNK);
+    for (const spec of chunk) {
+      const [datePart, startTime, endTime] = [spec.date, spec.start, spec.end];
+      const startDate = new Date(`${datePart}T00:00:00`);
+      const [sh, sm, sap] = parseTimeParts(startTime);
+      const [eh, em, eap] = parseTimeParts(endTime);
+      startDate.setHours(sap === 'PM' && sh < 12 ? sh + 12 : (sap === 'AM' && sh === 12 ? 0 : sh), sm, 0, 0);
+      const endDate = new Date(`${datePart}T00:00:00`);
+      endDate.setHours(eap === 'PM' && eh < 12 ? eh + 12 : (eap === 'AM' && eh === 12 ? 0 : eh), em, 0, 0);
+
+      const evRef = doc(eventsRef);
+      linkedIds.push(evRef.id);
+      batch.set(evRef, {
+        userId,
+        goalId,
+        isGoalEvent: true,
+        sourceType: 'goal',
+        sourceId: goalId,
+        goalSchedulingType: spec.goalSchedulingType,
+        isLocked: spec.goalSchedulingType === 'fixed',
+        sessionIndex: spec.sessionIndex,
+        title: goalData.title,
+        startTime: startDate,
+        endTime: endDate,
+        source: 'manual',
+        priority: goalData.priority ?? 'medium',
+        category: goalData.category ?? 'Personal',
+        flexibleScheduling: spec.flexibleScheduling,
+        completed: false,
+        createdAt: serverTimestamp(),
+      });
+    }
+    await batch.commit();
+  }
+
+  // 3. Patch linkedEventIds back onto the goal
+  await updateDoc(goalRef, { linkedEventIds: linkedIds });
+
+  await awardXPAndLog(userId, 'GOAL_CREATED', 10);
+  await updateBadgeProgress(userId, 'first_goal', 1);
+  return goalId;
+}
+
+/** Internal: parse "H:MM AP" into [hours, minutes, 'AM'|'PM'] */
+function parseTimeParts(t: string): [number, number, string] {
+  const m = t.match(/(\d+):(\d+)\s*(AM|PM)/i);
+  if (!m) return [9, 0, 'AM'];
+  return [parseInt(m[1], 10), parseInt(m[2], 10), m[3].toUpperCase()];
+}
+
+/**
+ * Re-generates calendar events for a goal after its schedule is edited.
+ * Deletes old linked events then batch-creates new ones.
+ */
+export async function dbUpdateGoalSchedule(
+  userId: string,
+  goalId: string,
+  updates: Partial<DbGoal>,
+  newEventSpecs: Array<{
+    date: string; start: string; end: string;
+    flexibleScheduling: boolean;
+    goalSchedulingType: 'fixed' | 'flexible' | 'ai';
+    sessionIndex: number;
+  }>
+): Promise<void> {
+  const goalRef = doc(db, 'goals', goalId);
+  const goalSnap = await getDoc(goalRef);
+  if (!goalSnap.exists()) return;
+  const existingGoal = goalSnap.data() as DbGoal;
+
+  // Delete all previously linked events
+  const oldIds: string[] = existingGoal.linkedEventIds ?? [];
+  const delBatch = writeBatch(db);
+  for (const eid of oldIds) {
+    delBatch.delete(doc(db, 'calendar_events', eid));
+  }
+  if (oldIds.length > 0) await delBatch.commit();
+
+  // Re-create events
+  const eventsRef = collection(db, 'calendar_events');
+  const linkedIds: string[] = [];
+  const CHUNK = 400;
+  for (let i = 0; i < newEventSpecs.length; i += CHUNK) {
+    const batch = writeBatch(db);
+    const chunk = newEventSpecs.slice(i, i + CHUNK);
+    for (const spec of chunk) {
+      const startDate = new Date(`${spec.date}T00:00:00`);
+      const [sh, sm, sap] = parseTimeParts(spec.start);
+      startDate.setHours(sap === 'PM' && sh < 12 ? sh + 12 : (sap === 'AM' && sh === 12 ? 0 : sh), sm, 0, 0);
+      const endDate = new Date(`${spec.date}T00:00:00`);
+      const [eh, em, eap] = parseTimeParts(spec.end);
+      endDate.setHours(eap === 'PM' && eh < 12 ? eh + 12 : (eap === 'AM' && eh === 12 ? 0 : eh), em, 0, 0);
+      const evRef = doc(eventsRef);
+      linkedIds.push(evRef.id);
+      batch.set(evRef, {
+        userId,
+        goalId,
+        isGoalEvent: true,
+        goalSchedulingType: spec.goalSchedulingType,
+        sessionIndex: spec.sessionIndex,
+        title: updates.title ?? existingGoal.title,
+        startTime: startDate,
+        endTime: endDate,
+        source: 'manual',
+        priority: updates.priority ?? existingGoal.priority ?? 'medium',
+        category: updates.category ?? existingGoal.category ?? 'Personal',
+        flexibleScheduling: spec.flexibleScheduling,
+        completed: false,
+        createdAt: serverTimestamp(),
+      });
+    }
+    await batch.commit();
+  }
+
+  await updateDoc(goalRef, {
+    ...updates,
+    linkedEventIds: linkedIds,
+    totalSessions: newEventSpecs.length,
+    updatedAt: serverTimestamp(),
+  });
 }
 
 /**
@@ -992,7 +1709,7 @@ export async function dbUpdateGoalProgress(userId: string, goalId: string, progr
   });
 
   if (isCompletedNow && prevStatus !== 'completed') {
-    await awardXPAndLog(userId, 'GOAL_COMPLETED', 25);
+    await awardXPAndLog(userId, 'GOAL_COMPLETED', 250);
 
     const statsRef = doc(db, 'user_stats', userId);
     const statsSnap = await getDoc(statsRef);
@@ -1000,7 +1717,9 @@ export async function dbUpdateGoalProgress(userId: string, goalId: string, progr
     if (statsSnap.exists()) {
       const stats = statsSnap.data() as UserStats;
       goalsCompletedVal = (stats.goalsCompleted || 0) + 1;
+      const momentumScore = computeMomentumScore({ ...stats, goalsCompleted: goalsCompletedVal });
       await updateDoc(statsRef, { goalsCompleted: goalsCompletedVal });
+      await updateDoc(doc(db, 'users', userId), { momentumScore });
     }
 
     await updateBadgeProgress(userId, 'goal_achiever', 1);
@@ -1009,11 +1728,154 @@ export async function dbUpdateGoalProgress(userId: string, goalId: string, progr
 }
 
 /**
- * Deletes a goal.
+ * Deletes a goal and all its linked calendar events.
  */
 export async function dbDeleteGoal(goalId: string): Promise<void> {
   const goalRef = doc(db, 'goals', goalId);
+  const goalSnap = await getDoc(goalRef);
+  if (goalSnap.exists()) {
+    const data = goalSnap.data() as DbGoal;
+    const ids: string[] = data.linkedEventIds ?? [];
+    if (ids.length > 0) {
+      const batch = writeBatch(db);
+      for (const eid of ids) batch.delete(doc(db, 'calendar_events', eid));
+      await batch.commit();
+    }
+  }
   await deleteDoc(goalRef);
+}
+
+/**
+ * Marks a single goal session (calendar event) as complete.
+ * Increments completedSessions, updates streak, awards XP.
+ */
+export async function dbCompleteGoalSession(
+  userId: string,
+  goalId: string,
+  eventId: string
+): Promise<void> {
+  // Mark the event as completed
+  const evRef = doc(db, 'calendar_events', eventId);
+  await updateDoc(evRef, { completed: true });
+
+  // Update goal progress
+  const goalRef = doc(db, 'goals', goalId);
+  const goalSnap = await getDoc(goalRef);
+  if (!goalSnap.exists()) return;
+  const goal = goalSnap.data() as DbGoal;
+
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+  const lastDate = goal.lastCompletedDate ?? '';
+
+  // Streak logic
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yStr = `${yesterday.getFullYear()}-${String(yesterday.getMonth()+1).padStart(2,'0')}-${String(yesterday.getDate()).padStart(2,'0')}`;
+  const prevStreak = goal.currentStreak ?? 0;
+  const newStreak = (lastDate === yStr || lastDate === todayStr) ? prevStreak + 1 : 1;
+  const longestStreak = Math.max(goal.longestStreak ?? 0, newStreak);
+
+  const completedSessions = (goal.completedSessions ?? 0) + 1;
+  const total = goal.totalSessions ?? goal.target ?? 1;
+  const progressType = goal.progressType ?? 'sessions';
+  const newProgress = progressType === 'sessions'
+    ? Math.round((completedSessions / total) * 100)
+    : Math.min((goal.progress ?? 0) + Math.round(100 / total), 100);
+
+  const isCompletedNow = newProgress >= 100;
+
+  await updateDoc(goalRef, {
+    completedSessions,
+    progress: newProgress,
+    status: isCompletedNow ? 'completed' : 'active',
+    currentStreak: newStreak,
+    longestStreak,
+    lastCompletedDate: todayStr,
+    updatedAt: serverTimestamp(),
+  });
+
+  await awardXPAndLog(userId, 'GOAL_CREATED', isCompletedNow ? 250 : 15);
+  if (isCompletedNow) {
+    await updateBadgeProgress(userId, 'goal_achiever', 1);
+  }
+}
+
+/**
+ * Handles a missed goal session.
+ * action: 'skip' | 'reschedule' | 'ai'
+ */
+export async function dbHandleMissedSession(
+  userId: string,
+  goalId: string,
+  eventId: string,
+  action: 'skip' | 'reschedule' | 'ai',
+  rescheduleDate?: string // YYYY-MM-DD for 'reschedule'
+): Promise<void> {
+  const evRef = doc(db, 'calendar_events', eventId);
+  const evSnap = await getDoc(evRef);
+  if (!evSnap.exists()) return;
+  const ev = evSnap.data();
+
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+
+  // Mark original as missed
+  await updateDoc(evRef, { missedAt: todayStr, completed: false });
+
+  // Record missed date on goal
+  const goalRef = doc(db, 'goals', goalId);
+  const goalSnap = await getDoc(goalRef);
+  if (!goalSnap.exists()) return;
+  const goal = goalSnap.data() as DbGoal;
+  const missedDates = [...(goal.missedDates ?? []), todayStr];
+
+  // Break streak
+  await updateDoc(goalRef, {
+    currentStreak: 0,
+    missedDates,
+    updatedAt: serverTimestamp(),
+  });
+
+  if (action === 'skip') return;
+
+  // For reschedule / ai: create a new event the next day (or AI-chosen date)
+  const targetDateStr = rescheduleDate ?? (() => {
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return `${tomorrow.getFullYear()}-${String(tomorrow.getMonth()+1).padStart(2,'0')}-${String(tomorrow.getDate()).padStart(2,'0')}`;
+  })();
+
+  // Preserve the same start/end time
+  const startTime: Date = ev.startTime instanceof Date ? ev.startTime : ev.startTime.toDate();
+  const endTime: Date   = ev.endTime   instanceof Date ? ev.endTime   : ev.endTime.toDate();
+  const newStart = new Date(`${targetDateStr}T00:00:00`);
+  newStart.setHours(startTime.getHours(), startTime.getMinutes(), 0, 0);
+  const newEnd = new Date(`${targetDateStr}T00:00:00`);
+  newEnd.setHours(endTime.getHours(), endTime.getMinutes(), 0, 0);
+
+  const eventsRef = collection(db, 'calendar_events');
+  const newEvRef = await addDoc(eventsRef, {
+    userId,
+    goalId,
+    isGoalEvent: true,
+    goalSchedulingType: ev.goalSchedulingType ?? 'flexible',
+    sessionIndex: ev.sessionIndex ?? 0,
+    title: ev.title,
+    startTime: newStart,
+    endTime: newEnd,
+    source: 'manual',
+    priority: ev.priority ?? 'medium',
+    category: ev.category ?? 'Personal',
+    flexibleScheduling: true,
+    completed: false,
+    rescheduledFrom: eventId,
+    createdAt: serverTimestamp(),
+  });
+
+  // Add new event to goal's linkedEventIds
+  const updatedIds = [...(goal.linkedEventIds ?? []), newEvRef.id];
+  await updateDoc(goalRef, { linkedEventIds: updatedIds, updatedAt: serverTimestamp() });
 }
 
 /**
@@ -1110,3 +1972,307 @@ export async function dbSyncIntegration(userId: string): Promise<void> {
     lastSync: serverTimestamp()
   });
 }
+
+// ─── AI CHAT HISTORY ─────────────────────────────────────────────────────────
+
+export interface AiChatMessage {
+  id?: string;
+  uid: string;
+  sender: 'user' | 'ai';
+  text: string;
+  timestamp: any;
+}
+
+/**
+ * Persists a single AI chat message (user or AI) to Firestore.
+ */
+export async function dbSaveAiMessage(uid: string, sender: 'user' | 'ai', text: string): Promise<void> {
+  await addDoc(collection(db, 'ai_chat_history'), {
+    uid,
+    sender,
+    text,
+    timestamp: serverTimestamp()
+  });
+}
+
+/**
+ * Loads the last N AI chat messages for a user.
+ */
+export async function dbGetAiHistory(uid: string, limitCount = 40): Promise<AiChatMessage[]> {
+  const q = query(
+    collection(db, 'ai_chat_history'),
+    where('uid', '==', uid),
+    orderBy('timestamp', 'desc'),
+    limit(limitCount)
+  );
+  const snap = await getDocs(q);
+  return snap.docs
+    .map(d => ({ id: d.id, ...(d.data() as Omit<AiChatMessage, 'id'>) }))
+    .reverse();
+}
+
+// ─── XP ACTIVITY FEED ────────────────────────────────────────────────────────
+
+export interface XpHistoryEntry {
+  id?: string;
+  uid: string;
+  action: string;
+  xpEarned: number;
+  timestamp: any;
+}
+
+/**
+ * Returns the last N XP history entries for a user.
+ */
+export async function dbGetXpHistory(uid: string, limitCount = 12): Promise<XpHistoryEntry[]> {
+  const q = query(
+    collection(db, 'user_xp_history'),
+    where('uid', '==', uid),
+    orderBy('timestamp', 'desc'),
+    limit(limitCount)
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...(d.data() as Omit<XpHistoryEntry, 'id'>) }));
+}
+
+// ─── WEEKLY ANALYTICS ────────────────────────────────────────────────────────
+
+export interface WeeklyAnalytics {
+  /** Bars: [Sun, Mon, Tue, Wed, Thu, Fri, Sat] — percentage 0–100 */
+  dailyCompletionPcts: number[];
+  dayLabels: string[];
+  totalCompleted: number;
+  totalTasks: number;
+  completionRate: number;
+  overdueCount: number;
+  /** Rough estimate: 1 completed task ≈ 1.5h focus */
+  estimatedFocusHours: number;
+  deadlineRisk: 'Low' | 'Medium' | 'High';
+}
+
+/**
+ * Aggregates task-completion data for the current week (Mon–Sun).
+ */
+export async function dbGetWeeklyAnalytics(userId: string): Promise<WeeklyAnalytics> {
+  const today = new Date();
+  today.setHours(23, 59, 59, 999);
+
+  // Build week boundaries (last 7 days ending today)
+  const days: Date[] = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    d.setHours(0, 0, 0, 0);
+    days.push(d);
+  }
+
+  const weekStart = days[0];
+  const weekEnd = new Date(today);
+
+  // Fetch all tasks for user
+  const q = query(collection(db, 'tasks'), where('userId', '==', userId));
+  const snap = await getDocs(q);
+
+  const allTasks = snap.docs.map(d => d.data());
+
+  // Per-day buckets
+  const completedPerDay = new Array(7).fill(0);
+  const totalPerDay = new Array(7).fill(0);
+  let overdueCount = 0;
+  const now = new Date();
+
+  for (const task of allTasks) {
+    const dueDateRaw = task.dueDate?.toDate ? task.dueDate.toDate() : (task.dueDate ? new Date(task.dueDate) : null);
+
+    // Count overdue (not completed, past due)
+    if (!task.completed && dueDateRaw && dueDateRaw < now) {
+      overdueCount++;
+    }
+
+    // Only include tasks due this week in the chart
+    if (!dueDateRaw || dueDateRaw < weekStart || dueDateRaw > weekEnd) continue;
+
+    // Find which day bucket
+    for (let i = 0; i < 7; i++) {
+      const dayStart = new Date(days[i]);
+      const dayEnd = new Date(days[i]);
+      dayEnd.setHours(23, 59, 59, 999);
+      if (dueDateRaw >= dayStart && dueDateRaw <= dayEnd) {
+        totalPerDay[i]++;
+        if (task.completed) completedPerDay[i]++;
+        break;
+      }
+    }
+  }
+
+  const dailyCompletionPcts = days.map((_, i) => {
+    if (totalPerDay[i] === 0) return 0;
+    return Math.round((completedPerDay[i] / totalPerDay[i]) * 100);
+  });
+
+  const dayLabels = days.map(d =>
+    new Intl.DateTimeFormat('en-US', { weekday: 'short' }).format(d)
+  );
+
+  const totalCompleted = allTasks.filter(t => t.completed).length;
+  const totalTasks = allTasks.length;
+  const completionRate = totalTasks > 0 ? Math.round((totalCompleted / totalTasks) * 100) : 0;
+  const estimatedFocusHours = Math.round(totalCompleted * 1.5 * 10) / 10;
+  const deadlineRisk: WeeklyAnalytics['deadlineRisk'] =
+    overdueCount >= 5 ? 'High' : overdueCount >= 2 ? 'Medium' : 'Low';
+
+  return {
+    dailyCompletionPcts,
+    dayLabels,
+    totalCompleted,
+    totalTasks,
+    completionRate,
+    overdueCount,
+    estimatedFocusHours,
+    deadlineRisk,
+  };
+}
+
+// ─── ASSIGNMENTS & RECURRING RULES ───────────────────────────────────────────
+
+export interface DbAssignment {
+  id?: string;
+  userId: string;
+  title: string;
+  description?: string;
+  dueDate: any;
+  priority: 'low' | 'medium' | 'high' | 'critical';
+  subject: string;
+  attachments?: string[];
+  completed: boolean;
+  createdAt: any;
+}
+
+export interface DbRecurringRule {
+  id?: string;
+  userId: string;
+  title: string;
+  category: string;
+  daysOfWeek: number[];
+  startTime: string;
+  endTime: string;
+  startDate: any;
+  endDate?: any;
+  repeatForever: boolean;
+  accent: string;
+  createdAt: any;
+}
+
+export async function dbAddAssignment(userId: string, assignment: Omit<DbAssignment, 'userId' | 'createdAt' | 'completed'>): Promise<void> {
+  const collRef = collection(db, 'calendar_assignments');
+  await addDoc(collRef, {
+    userId,
+    title: assignment.title,
+    description: assignment.description || '',
+    dueDate: assignment.dueDate,
+    priority: assignment.priority,
+    subject: assignment.subject,
+    attachments: assignment.attachments || [],
+    completed: false,
+    createdAt: serverTimestamp(),
+  });
+}
+
+export async function dbUpdateAssignment(assignmentId: string, data: Partial<Omit<DbAssignment, 'id' | 'userId' | 'createdAt'>>): Promise<void> {
+  const docRef = doc(db, 'calendar_assignments', assignmentId);
+  await updateDoc(docRef, data);
+}
+
+export async function dbDeleteAssignment(assignmentId: string): Promise<void> {
+  const docRef = doc(db, 'calendar_assignments', assignmentId);
+  await deleteDoc(docRef);
+}
+
+export async function dbAddRecurringRule(userId: string, rule: Omit<DbRecurringRule, 'userId' | 'createdAt'>): Promise<void> {
+  const collRef = collection(db, 'calendar_routines');
+  await addDoc(collRef, {
+    userId,
+    title: rule.title,
+    category: rule.category,
+    daysOfWeek: rule.daysOfWeek,
+    startTime: rule.startTime,
+    endTime: rule.endTime,
+    startDate: rule.startDate,
+    endDate: rule.endDate || null,
+    repeatForever: rule.repeatForever,
+    accent: rule.accent,
+    createdAt: serverTimestamp(),
+  });
+}
+
+export async function dbDeleteRecurringRule(ruleId: string): Promise<void> {
+  const docRef = doc(db, 'calendar_routines', ruleId);
+  await deleteDoc(docRef);
+}
+
+/**
+ * Migrates existing planner data to calendar collections.
+ */
+export async function dbMigratePlannerToCalendar(userId: string): Promise<void> {
+  const collectionsToMigrate = [
+    { source: 'events', target: 'calendar_events' },
+    { source: 'assignments', target: 'calendar_assignments' },
+    { source: 'recurring_rules', target: 'calendar_routines' },
+  ];
+
+  for (const pair of collectionsToMigrate) {
+    try {
+      const srcQuery = query(collection(db, pair.source), where('userId', '==', userId));
+      const snap = await getDocs(srcQuery);
+      
+      for (const srcDoc of snap.docs) {
+        const data = srcDoc.data();
+        const targetDocRef = doc(db, pair.target, srcDoc.id);
+        const targetSnap = await getDoc(targetDocRef);
+        if (!targetSnap.exists()) {
+          await setDoc(targetDocRef, data);
+        }
+      }
+    } catch (err) {
+      console.error(`Migration error for ${pair.source} -> ${pair.target}:`, err);
+    }
+  }
+}
+
+/**
+ * Fetches user preferences containing AI configuration.
+ */
+export async function dbGetUserPreferences(uid: string): Promise<any> {
+  const preferencesRef = doc(db, 'user_preferences', uid);
+  const snap = await getDoc(preferencesRef);
+  
+  const defaultPrefs = {
+    uid,
+    hasClaimedWelcomeBadge: false,
+    geminiApiKey: '',
+    sarvamApiKey: '',
+    enableVoiceAssistant: true,
+    enableAiScheduling: true,
+    enableDailyAiBrief: true,
+    enableSmartRecommendations: true,
+    enableOptimizeDay: true,
+    enableOptimizeWeek: true
+  };
+
+  if (snap.exists()) {
+    return { ...defaultPrefs, ...snap.data() };
+  }
+  
+  await setDoc(preferencesRef, defaultPrefs);
+  return defaultPrefs;
+}
+
+/**
+ * Updates user preferences in Firestore.
+ */
+export async function dbUpdateUserPreferences(uid: string, data: Partial<any>): Promise<void> {
+  const preferencesRef = doc(db, 'user_preferences', uid);
+  await setDoc(preferencesRef, data, { merge: true });
+}
+
+

@@ -1,4 +1,3 @@
-import { type ReactNode } from 'react';
 
 interface BadgeIllustrationProps {
   badgeId: string;
@@ -100,12 +99,21 @@ export function BadgeIllustration({
                 <stop offset="100%" stopColor="#6D4AFF" />
               </linearGradient>
             </defs>
-            <circle cx="50" cy="50" r="44" fill="rgba(255,255,255,0.04)" stroke="url(#noteGrad)" strokeWidth="2" />
-            <rect x="34" y="28" width="32" height="44" rx="4" stroke="url(#noteGrad)" strokeWidth="3" />
-            <path d="M44 28 V24 H56 V28" stroke="url(#noteGrad)" strokeWidth="2" strokeLinecap="round" />
-            <line x1="42" y1="40" x2="58" y2="40" stroke="url(#noteGrad)" strokeWidth="2.5" strokeLinecap="round" />
-            <line x1="42" y1="48" x2="58" y2="48" stroke="url(#noteGrad)" strokeWidth="2.5" strokeLinecap="round" />
-            <line x1="42" y1="56" x2="52" y2="56" stroke="url(#noteGrad)" strokeWidth="2.5" strokeLinecap="round" />
+            <circle cx="50" cy="50" r="44" fill="rgba(255,255,255,0.04)" stroke="url(#noteGrad)" strokeWidth="2.5" />
+            {/* Clipboard backing */}
+            <rect x="34" y="28" width="32" height="44" rx="5" stroke="url(#noteGrad)" strokeWidth="3" fill="rgba(255,255,255,0.05)" />
+            {/* Clip */}
+            <path d="M44 28 V22 H56 V28 Z" fill="url(#noteGrad)" />
+            {/* Lines */}
+            <line x1="40" y1="38" x2="60" y2="38" stroke="url(#noteGrad)" strokeWidth="2.5" strokeLinecap="round" opacity="0.8" />
+            <line x1="40" y1="46" x2="60" y2="46" stroke="url(#noteGrad)" strokeWidth="2.5" strokeLinecap="round" opacity="0.8" />
+            <line x1="40" y1="54" x2="52" y2="54" stroke="url(#noteGrad)" strokeWidth="2.5" strokeLinecap="round" opacity="0.8" />
+            {/* Diagonal Pen */}
+            <g transform="translate(62, 45) rotate(25)">
+              <rect x="-2" y="-14" width="4" height="28" rx="1" fill="url(#noteGrad)" stroke="#FFFFFF" strokeWidth="1" />
+              <path d="M-2 -14 L0 -19 L2 -14 Z" fill="#FFFFFF" />
+              <rect x="1" y="-8" width="1" height="8" rx="0.5" fill="#FFFFFF" />
+            </g>
           </svg>
         );
 
@@ -398,26 +406,26 @@ export function BadgeIllustration({
 
   const rarityInfo = {
     common: {
-      border: 'border-[#E5E7EB] dark:border-white/5 bg-[#FBFCFF]/80 dark:bg-[#1D1F2D]/80',
-      badge: 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400',
+      border: 'border-slate-300/30 dark:border-slate-700/30 bg-gradient-to-b from-slate-500/5 to-transparent backdrop-blur-sm bg-white/5 shadow-sm',
+      badge: 'bg-slate-100 dark:bg-slate-800 text-slate-650 dark:text-slate-400 border border-slate-200 dark:border-slate-750',
       label: 'Common',
-      color: 'text-gray-500 dark:text-gray-455'
+      color: 'text-slate-500 dark:text-slate-400'
     },
     rare: {
-      border: 'border-amber-400/30 dark:border-amber-500/20 bg-gradient-to-b from-amber-500/5 to-transparent dark:from-amber-500/5 dark:to-transparent shadow-[0_8px_20px_-10px_rgba(245,158,11,0.25)]',
-      badge: 'bg-amber-100 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-900/30',
+      border: 'border-amber-400/30 dark:border-amber-500/20 bg-gradient-to-b from-amber-500/5 to-transparent backdrop-blur-md bg-white/5 shadow-[0_8px_22px_-6px_rgba(245,158,11,0.2)]',
+      badge: 'bg-amber-100 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-200/50 dark:border-amber-900/30',
       label: 'Rare',
       color: 'text-amber-500 dark:text-amber-400'
     },
     epic: {
-      border: 'border-indigo-400/30 dark:border-indigo-500/20 bg-gradient-to-b from-indigo-500/5 to-transparent dark:from-indigo-500/5 dark:to-transparent shadow-[0_8px_20px_-10px_rgba(99,102,241,0.25)]',
-      badge: 'bg-indigo-100 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-900/30',
+      border: 'border-indigo-500/30 dark:border-indigo-400/30 bg-gradient-to-b from-indigo-500/10 via-pink-500/5 to-transparent backdrop-blur-xl bg-white/10 shadow-[0_8px_25px_-6px_rgba(99,102,241,0.3)]',
+      badge: 'bg-gradient-to-r from-indigo-500/20 to-pink-500/20 text-indigo-500 dark:text-indigo-300 border border-indigo-300/30 dark:border-indigo-800/30',
       label: 'Epic',
       color: 'text-indigo-500 dark:text-indigo-400'
     },
     legendary: {
-      border: 'border-purple-500/30 bg-gradient-to-b from-purple-500/5 to-transparent dark:from-purple-900/5 dark:to-transparent shadow-[0_8px_24px_-10px_rgba(139,92,246,0.3)]',
-      badge: 'bg-gradient-to-r from-purple-500 to-pink-500 text-white font-extrabold shadow-[0_0_10px_rgba(139,92,246,0.4)]',
+      border: 'border-purple-500/30 bg-gradient-to-b from-purple-500/10 via-indigo-500/5 to-transparent backdrop-blur-2xl bg-white/15 shadow-[0_8px_30px_-6px_rgba(139,92,246,0.4)]',
+      badge: 'bg-gradient-to-r from-purple-500 to-pink-500 text-white font-extrabold shadow-[0_0_12px_rgba(139,92,246,0.5)]',
       label: 'Legendary',
       color: 'text-purple-600 dark:text-purple-400 font-extrabold tracking-wide'
     }
@@ -427,7 +435,7 @@ export function BadgeIllustration({
 
   // Wrapper card content
   const renderCardContent = () => (
-    <div className={`relative flex flex-col items-center justify-between p-4.5 rounded-[22px] h-full text-center transition-all duration-300 ${isHighlighted ? 'ring-4 ring-[#8B5CF6] scale-105 shadow-[0_0_25px_rgba(139,92,246,0.6)] animate-glow-pulse' : 'hover:scale-[1.02] hover:-translate-y-1 hover:shadow-md'} ${rarity !== 'legendary' ? style.border : 'border border-white/5 bg-[#171923]/92'}`}>
+    <div className={`relative flex flex-col items-center justify-between p-4.5 rounded-[22px] h-full text-center transition-all duration-300 ${isHighlighted ? 'ring-4 ring-[#8B5CF6] scale-105 shadow-[0_0_25px_rgba(139,92,246,0.6)] animate-glow-pulse' : 'hover:scale-[1.04] hover:-translate-y-1.5 hover:shadow-lg'} ${rarity !== 'legendary' ? style.border : 'border border-white/5 bg-[#171923]/92 shadow-[0_8px_30px_-10px_rgba(139,92,246,0.5)]'}`}>
       
       {/* Glow shadow ring on hover if unlocked */}
       {isUnlocked && rarity !== 'legendary' && (

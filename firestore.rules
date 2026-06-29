@@ -15,6 +15,26 @@ service cloud.firestore {
       allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
     }
+    match /calendar_events/{eventId} {
+      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+    }
+    match /calendar_assignments/{assignmentId} {
+      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+    }
+    match /calendar_routines/{ruleId} {
+      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+    }
+    match /assignments/{assignmentId} {
+      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+    }
+    match /recurring_rules/{ruleId} {
+      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+    }
     match /goals/{goalId} {
       allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
@@ -26,10 +46,12 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
     match /user_badges/{badgeId} {
-      allow read, write: if request.auth != null && (resource == null || resource.data.uid == request.auth.uid) && (request.resource == null || request.resource.data.uid == request.auth.uid);
+      allow read: if request.auth != null && resource.data.uid == request.auth.uid;
+      allow write: if request.auth != null && (resource == null || resource.data.uid == request.auth.uid) && request.resource.data.uid == request.auth.uid;
     }
     match /user_xp_history/{historyId} {
-      allow read, create: if request.auth != null && (resource == null || resource.data.uid == request.auth.uid) && (request.resource == null || request.resource.data.uid == request.auth.uid);
+      allow read: if request.auth != null && resource.data.uid == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.uid == request.auth.uid;
     }
     match /habits/{habitId} {
       allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
@@ -50,8 +72,13 @@ service cloud.firestore {
       allow read, update, delete: if request.auth != null && resource.data.uid == request.auth.uid;
       allow create: if request.auth != null && request.resource.data.uid == request.auth.uid;
     }
+    match /ai_chat_history/{messageId} {
+      allow read, delete: if request.auth != null && resource.data.uid == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.uid == request.auth.uid;
+    }
   }
 }
+
 
 
 

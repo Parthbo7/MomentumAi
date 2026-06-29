@@ -32,10 +32,16 @@ function App() {
       setAuthLoading(false);
 
       const currentPath = window.location.pathname;
-      if (currentUser && currentPath === '/') {
-        navigate('/dashboard');
-      } else if (!currentUser && currentPath === '/dashboard') {
-        navigate('/');
+      if (currentUser) {
+        if (currentPath === '/') {
+          navigate('/dashboard');
+        } else if (currentPath === '/planner') {
+          navigate('/calendar');
+        }
+      } else {
+        if (currentPath === '/dashboard' || currentPath === '/calendar' || currentPath === '/planner') {
+          navigate('/');
+        }
       }
     });
 
@@ -45,16 +51,22 @@ function App() {
   useEffect(() => {
     const handlePopState = () => {
       const currentPath = window.location.pathname;
-      if (currentPath === '/dashboard' && !user) {
-        window.history.replaceState({}, '', '/');
-        setPath('/');
-        return;
-      }
-
-      if (currentPath === '/' && user) {
-        window.history.replaceState({}, '', '/dashboard');
-        setPath('/dashboard');
-        return;
+      if (!user) {
+        if (currentPath === '/dashboard' || currentPath === '/calendar' || currentPath === '/planner') {
+          window.history.replaceState({}, '', '/');
+          setPath('/');
+          return;
+        }
+      } else {
+        if (currentPath === '/') {
+          window.history.replaceState({}, '', '/dashboard');
+          setPath('/dashboard');
+          return;
+        } else if (currentPath === '/planner') {
+          window.history.replaceState({}, '', '/calendar');
+          setPath('/calendar');
+          return;
+        }
       }
 
       setPath(currentPath);
@@ -83,7 +95,16 @@ function App() {
   }
 
   if (path === '/dashboard') {
-    return <Dashboard user={user} onNavigateHome={() => navigate('/')} />;
+    return <Dashboard user={user} onNavigateHome={() => navigate('/')} initialSection="Dashboard" />;
+  }
+
+  if (path === '/calendar') {
+    return <Dashboard user={user} onNavigateHome={() => navigate('/')} initialSection="Calendar" />;
+  }
+
+  if (path === '/planner') {
+    setTimeout(() => navigate('/calendar'), 0);
+    return null;
   }
 
   return (
