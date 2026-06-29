@@ -22,6 +22,7 @@ import {
   Trash2,
   User as UserIcon,
   Settings as SettingsIcon,
+  X,
 } from 'lucide-react';
 import { auth, db } from '../firebase';
 import {
@@ -69,7 +70,7 @@ import { GoalsHabitsWorkspace } from './GoalsHabitsWorkspace';
 
 import { FloatingAiAssistant } from './FloatingAiAssistant';
 import { FloatingActionButton } from './FloatingActionButton';
-import { autoScheduleTask, timeToMinutes, autoReschedulePastTasks, optimizeDaySchedule, optimizeWeekSchedule, todayKey, formatDateKey as fmtDkScheduler } from './calendar/aiScheduler';
+import { autoScheduleTask, timeToMinutes, autoReschedulePastTasks, optimizeDaySchedule, todayKey, formatDateKey as fmtDkScheduler } from './calendar/aiScheduler';
 import * as aiService from '../lib/aiService';
 import * as voiceService from '../lib/voiceService';
 import {
@@ -3158,14 +3159,7 @@ export function Dashboard({ user, onNavigateHome, initialSection = 'Dashboard' }
       assignmentDeadlinesList[0] ||
       pendingTasks.find((task) => task.priority === 'critical' || task.priority === 'high') ||
       pendingTasks[0];
-    const completedTasksToday = tasks.filter(
-      (task) => task.completed && task.completedAt && sameDay(task.completedAt.toDate ? task.completedAt.toDate() : new Date(task.completedAt), TODAY)
-    );
-    const completedGoalsCount = dashboardGoals.filter((goal) => goal.status === 'completed').length;
-    const completedHabitsTodayCount = dashboardHabits.filter((habit) => habit.completedToday).length;
-    const completedChecklistCount = completedGoalsCount + completedHabitsTodayCount;
-    const totalChecklistCount = dashboardGoals.length + dashboardHabits.length;
-    const focusMinutesToday = completedTasksToday.reduce((sum, task) => sum + (task.durationMinutes || 0), 0);
+
 
 
 
@@ -3185,32 +3179,6 @@ export function Dashboard({ user, onNavigateHome, initialSection = 'Dashboard' }
         showToast('Failed to optimize day.', 'error');
       }
     };
-
-    const handleOptimizeWeek = async () => {
-      try {
-        showToast('Optimizing your week...', 'success');
-        const weekStart = startOfWeek(TODAY);
-        const weekEnd = addDays(weekStart, 6);
-        const startStr = formatDateKey(weekStart);
-        const endStr = formatDateKey(weekEnd);
-        const result = optimizeWeekSchedule(startStr, endStr, events as any[]);
-        setEvents(result.optimizedEvents as any);
-        showToast(`Week optimized! ${result.stats.moved} events repositioned.`, 'success');
-      } catch {
-        showToast('Failed to optimize week.', 'error');
-      }
-    };
-
-
-
-    const xpToday = xpHistory
-      .filter((entry) => {
-        const ts = entry.timestamp?.toDate ? entry.timestamp.toDate() : (entry.timestamp ? new Date(entry.timestamp) : null);
-        return ts ? sameDay(ts, TODAY) : false;
-      })
-      .reduce((sum, entry) => sum + (entry.xpEarned || 0), 0);
-
-    const todayProductivityPct = Math.min(100, Math.round(((completedTasksToday.length + completedChecklistCount) / Math.max(dueTodayTasks.length + totalChecklistCount, 1)) * 100));
 
     return (
       <div className="relative space-y-6 text-left">
