@@ -1462,8 +1462,13 @@ export function Dashboard({ user, onNavigateHome, initialSection = 'Dashboard' }
       date = createdAt;
     } else if (createdAt && typeof createdAt.toDate === 'function') {
       date = createdAt.toDate();
+    } else if (createdAt && (createdAt as any).seconds) {
+      date = new Date((createdAt as any).seconds * 1000);
     } else {
       date = new Date(createdAt as any);
+    }
+    if (isNaN(date.getTime())) {
+      return 'Just now';
     }
     return new Intl.DateTimeFormat('en-US', {
       month: 'short',
@@ -2324,11 +2329,24 @@ export function Dashboard({ user, onNavigateHome, initialSection = 'Dashboard' }
     const habitsCompleted = userStats?.habitsCompleted ?? 0;
     const aiInteractions = userStats?.aiInteractions ?? 0;
 
-    const memberSinceStr = userProfile?.createdAt 
-      ? new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(
-          userProfile.createdAt.toDate ? userProfile.createdAt.toDate() : new Date(userProfile.createdAt)
-        )
-      : 'June 2026';
+    let memberSinceStr = 'June 2026';
+    if (userProfile?.createdAt) {
+      try {
+        let dateObj: Date | null = null;
+        if (typeof userProfile.createdAt.toDate === 'function') {
+          dateObj = userProfile.createdAt.toDate();
+        } else if (userProfile.createdAt.seconds) {
+          dateObj = new Date(userProfile.createdAt.seconds * 1000);
+        } else {
+          dateObj = new Date(userProfile.createdAt);
+        }
+        if (dateObj && !isNaN(dateObj.getTime())) {
+          memberSinceStr = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(dateObj);
+        }
+      } catch (err) {
+        console.error('Error formatting memberSinceStr:', err);
+      }
+    }
 
     const getBadgeData = (badgeId: string, defaultTarget: number) => {
       const badge = userBadges.find(b => b.badgeId === badgeId);
@@ -2702,8 +2720,15 @@ export function Dashboard({ user, onNavigateHome, initialSection = 'Dashboard' }
                       .replace('AI COACH USAGE', 'AI Coach Used')
                       .replace('GOAL CREATED', 'Goal Created')
                       .replace('NOTES CREATED', 'Note Created');
-                    const ts = entry.timestamp?.toDate ? entry.timestamp.toDate() : (entry.timestamp ? new Date(entry.timestamp) : null);
-                    const timeStr = ts ? new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(ts) : '';
+                    const ts = entry.timestamp?.toDate 
+                      ? entry.timestamp.toDate() 
+                      : (entry.timestamp?.seconds 
+                          ? new Date(entry.timestamp.seconds * 1000) 
+                          : (entry.timestamp ? new Date(entry.timestamp) : null));
+                    const isValidDate = ts && !isNaN(ts.getTime());
+                    const timeStr = isValidDate 
+                      ? new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(ts) 
+                      : '';
                     return (
                       <div key={entry.id} className="flex items-center justify-between rounded-[12px] bg-[#F9FAFB] dark:bg-[#1D1F2D] px-3.5 py-2.5">
                         <div className="flex items-center gap-2.5">
